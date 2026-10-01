@@ -1,0 +1,58 @@
+<!doctype html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#176b4a"><title>جرجير</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f6f3;font-family:Tahoma,Arial;color:#17352b}.app{max-width:560px;margin:auto;background:white;min-height:100vh}
+header{background:linear-gradient(135deg,#145c40,#2f9a68);color:#fff;padding:22px 16px 25px;border-radius:0 0 28px 28px}.brand{font-size:28px;font-weight:900}.sub{font-size:13px;opacity:.9}
+select{width:100%;margin-top:15px;padding:12px;border:0;border-radius:12px;background:#ffffff25;color:white;font-size:16px;font-weight:bold}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px}.stat{padding:11px;border:1px solid #ffffff35;border-radius:15px;background:#ffffff1c}.stat small{opacity:.9}.stat b{display:block;font-size:19px;margin-top:4px}
+main{padding:15px}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px}button{border:0;border-radius:15px;padding:14px;font-size:14px;font-weight:900}.p{background:#176b4a;color:#fff}.s{background:#eaf3ee;color:#176b4a}.d{background:#fff0ee;color:#a52218}
+section{margin-top:21px}h2{font-size:18px;margin:0 0 9px}.card,.empty{background:#f8faf9;border:1px solid #e0e9e4;border-radius:16px;padding:13px;margin-bottom:9px}.top{display:flex;justify-content:space-between;gap:8px}.amount{font-weight:900}.meta{font-size:11px;color:#71827b;margin-top:5px}.balance{border-top:1px dashed #ccd8d2;margin-top:9px;padding-top:9px;font-weight:bold}.good{color:#176b4a}.bad{color:#b42318}.empty{text-align:center;color:#84928c}
+.modal{display:none;position:fixed;inset:0;background:#0008;align-items:flex-end}.sheet{width:min(560px,100%);background:#fff;border-radius:25px 25px 0 0;padding:20px;max-height:90vh;overflow:auto}.close{float:left;background:#eee;border:0;border-radius:10px;padding:7px 11px;font-size:18px}label{display:block;font-weight:bold;margin-top:12px}input{width:100%;padding:14px;border:1px solid #ccd8d2;border-radius:12px;font-size:17px;margin-top:6px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border-bottom:1px solid #e0e9e4;padding:8px;text-align:right}th{background:#eef4f0}footer{text-align:center;color:#91a099;font-size:11px;padding:25px}
+</style></head><body><div class="app">
+<header><div class="brand">🥬 جرجير</div><div class="sub">مساعد العهد والفواتير النقدية</div>
+<select id="months" onchange="changeMonth()"></select>
+<div class="stats"><div class="stat"><small>العهدة</small><b id="trust">0</b></div><div class="stat"><small>الفواتير</small><b id="total">0</b></div><div class="stat"><small>الباقي</small><b id="remain">0</b></div><div class="stat"><small>عدد الفواتير</small><b id="count">0</b></div></div></header>
+<main><div class="buttons">
+<button class="p" onclick="invoice()">＋ فاتورة</button><button class="s" onclick="trust()">💰 سند عهدة</button>
+<button class="s" onclick="report()">📊 تقرير الشهر</button><button class="s" onclick="pdf()">📄 PDF</button>
+<button class="s" onclick="backup()">💾 نسخة احتياطية</button><button class="s" onclick="document.getElementById('file').click()">↩️ استعادة</button>
+<input id="file" type="file" accept=".json" hidden onchange="restore(event)">
+</div>
+<section><h2>العهدة</h2><div id="trustBox"></div></section>
+<section><h2>الفواتير</h2><div id="list"></div></section>
+<section><button class="d" style="width:100%" onclick="closeMonth()">🔒 إغلاق الشهر</button></section>
+</main><footer>جرجير للخضار والفواكه — استخدام شخصي</footer></div>
+
+<div class="modal" id="tm"><div class="sheet"><button class="close" onclick="closeM()">×</button><h2>💰 سند عهدة</h2><label>رقم السند</label><input id="tn" inputmode="numeric" placeholder="مثال: 125"><label>مبلغ العهدة</label><input id="ta" inputmode="decimal" placeholder="10000"><button class="p" style="width:100%;margin-top:15px" onclick="saveTrust()">حفظ</button></div></div>
+<div class="modal" id="im"><div class="sheet"><button class="close" onclick="closeM()">×</button><h2>🧾 فاتورة كاش</h2><label>رقم الفاتورة</label><input id="fn" inputmode="numeric" placeholder="مثال: 54"><label>إجمالي الفاتورة</label><input id="fa" inputmode="decimal" placeholder="850"><button class="p" style="width:100%;margin-top:15px" onclick="saveInvoice()">حفظ</button></div></div>
+<div class="modal" id="rm"><div class="sheet"><button class="close" onclick="closeM()">×</button><h2>📊 تقرير الشهر</h2><div id="rep"></div><button class="p" style="width:100%;margin-top:15px" onclick="pdf()">📄 PDF</button></div></div>
+
+<script>
+const K='jarjir_monthly_4', mk=()=>{let d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+let db=JSON.parse(localStorage.getItem(K)||'null')||{cur:mk(),months:{}};
+function M(){return db.months[db.cur]||(db.months[db.cur]={trust:null,invoices:[],closed:false})}
+function save(){localStorage.setItem(K,JSON.stringify(db));render()}
+function money(n){return Number(n).toLocaleString('ar-SA',{minimumFractionDigits:2,maximumFractionDigits:2})+' ر.س'}
+function sum(){return M().invoices.reduce((a,x)=>a+x.a,0)}
+function name(k){let [y,m]=k.split('-');return new Date(+y,+m-1,1).toLocaleDateString('ar-SA',{year:'numeric',month:'long'})}
+function render(){
+let m=M(),t=m.trust?.a||0,s=sum(),b=t-s,sel=document.getElementById('months'),keys=Object.keys(db.months);if(!keys.includes(db.cur))keys.push(db.cur);keys=[...new Set(keys)].sort().reverse();
+sel.innerHTML=keys.map(k=>'<option value="'+k+'" '+(k==db.cur?'selected':'')+'>'+name(k)+(db.months[k]?.closed?' — مغلق':'')+'</option>').join('');
+trust.textContent=money(t);total.textContent=money(s);count.textContent=m.invoices.length;remain.textContent=money(Math.abs(b));remain.className=b<0?'bad':'good';
+trustBox.innerHTML=m.trust?'<div class="card"><div class="top"><b>سند رقم '+m.trust.n+'</b><b>'+money(t)+'</b></div><div class="meta">'+m.trust.d+'</div><div class="balance">الباقي: <span class="'+(b<0?'bad':'good')+'">'+money(Math.abs(b))+(b<0?' — تجاوز العهدة':'')+'</span></div></div>':'<div class="empty">لم تسجل عهدة لهذا الشهر.</div>';
+list.innerHTML=m.invoices.length?m.invoices.slice().reverse().map(x=>'<div class="card"><div class="top"><b>فاتورة رقم '+x.n+'</b><b class="amount">'+money(x.a)+'</b></div><div class="meta">'+x.d+' — كاش</div></div>').join(''):'<div class="empty">لا توجد فواتير.</div>';
+}
+function open(id){document.getElementById(id).style.display='flex'}function closeM(){document.querySelectorAll('.modal').forEach(x=>x.style.display='none')}
+function trust(){if(M().closed)return alert('الشهر مغلق');open('tm')}
+function invoice(){if(!M().trust)return alert('سجل سند العهدة أولاً');if(M().closed)return alert('الشهر مغلق');open('im')}
+function saveTrust(){let n=tn.value.trim(),a=parseFloat(ta.value);if(!n||isNaN(a)||a<0)return alert('أدخل رقم السند والمبلغ');if(M().trust&&!confirm('استبدال سند العهدة؟'))return;M().trust={n,a,d:new Date().toLocaleString('ar-SA')};save();closeM()}
+function saveInvoice(){let n=fn.value.trim(),a=parseFloat(fa.value);if(!n||isNaN(a)||a<0)return alert('أدخل رقم الفاتورة والمبلغ');if(M().invoices.some(x=>String(x.n)==String(n)))return alert('رقم الفاتورة موجود مسبقًا');M().invoices.push({n,a,d:new Date().toLocaleString('ar-SA')});save();closeM()}
+function changeMonth(){db.cur=document.getElementById('months').value;save()}
+function closeMonth(){if(!confirm('إغلاق شهر '+name(db.cur)+'؟ لن تستطيع إضافة فواتير إليه.'))return;M().closed=true;save()}
+function report(){let m=M(),t=m.trust?.a||0,s=sum(),b=t-s;rep.innerHTML='<div class="card"><b>الشهر:</b> '+name(db.cur)+'<br><b>سند العهدة:</b> '+(m.trust?.n||'—')+'<br><b>العهدة:</b> '+money(t)+'<br><b>الإجمالي:</b> '+money(s)+'<br><b>عدد الفواتير:</b> '+m.invoices.length+'<br><b>الباقي:</b> '+money(Math.abs(b))+'</div><table><tr><th>الفاتورة</th><th>التاريخ</th><th>المبلغ</th></tr>'+m.invoices.map(x=>'<tr><td>'+x.n+'</td><td>'+x.d+'</td><td>'+money(x.a)+'</td></tr>').join('')+'</table>';open('rm')}
+function pdf(){let m=M(),t=m.trust?.a||0,s=sum(),b=t-s,w=window.open('','_blank');if(!w)return alert('اسمح بالنوافذ المنبثقة في Chrome');w.document.write('<html dir="rtl"><head><meta charset="utf-8"><title>جرجير '+name(db.cur)+'</title><style>body{font-family:Tahoma;padding:25px}h1,h2{text-align:center}table{width:100%;border-collapse:collapse}th,td{border:1px solid #aaa;padding:8px;text-align:right}th{background:#eee}p{font-size:16px}</style></head><body><h1>🥬 جرجير للخضار والفواكه</h1><h2>تقرير '+name(db.cur)+'</h2><p>سند العهدة: '+(m.trust?.n||'—')+'</p><p>العهدة: '+money(t)+'</p><p>إجمالي الفواتير: '+money(s)+'</p><p>الباقي: '+money(Math.abs(b))+'</p><p>عدد الفواتير: '+m.invoices.length+'</p><table><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المبلغ</th></tr>'+m.invoices.map(x=>'<tr><td>'+x.n+'</td><td>'+x.d+'</td><td>'+money(x.a)+'</td></tr>').join('')+'</table></body></html>');w.document.close();setTimeout(()=>w.print(),400)}
+function backup(){let a=document.createElement('a'),b=new Blob([JSON.stringify(db)],{type:'application/json'});a.href=URL.createObjectURL(b);a.download='جرجير_نسخة_'+db.cur+'.json';a.click()}
+function restore(e){let f=e.target.files[0],r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.months)throw 1;if(confirm('استبدال البيانات الحالية؟')){db=x;save();alert('تمت الاستعادة')}}catch{alert('ملف غير صالح')}};r.readAsText(f)}
+render();
+</script></body></html>
